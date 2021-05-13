@@ -39,6 +39,38 @@ const Reader = (function () {
         this.saveJSON(data);
     };
 
+    Reader.prototype.gatherAllHoles = function (node, result) {
+        for (let i = 0; i < node.Count; i++) {
+            let isFurniture = false;
+            //по завершению скрипта заменить проверку ниже на более изящное TFastener и проверить как будет работать
+            for (let key in node[i]) {
+                if (key === 'Holes') {
+                    isFurniture = true;
+                    break;
+                }
+            }
+            if (!isFurniture) {
+                if (node[i].List) {
+                    result = this.gatherAllHoles(node[i], result);
+                }
+                continue;
+            }
+            for (let j = 0; j < node[i].Holes.Count; j += 1) {
+                const hole = node[i].Holes[j];
+                result.push(
+                    {
+                        position: node[i].ToGlobal(hole.Position),
+                        endPosition: node[i].ToGlobal(hole.EndPosition()),
+                        direction: node[i].NToGlobal(hole.Direction),
+                        obj: hole
+                    }
+                );
+            }
+        }
+
+        return result;
+    };
+
     Reader.prototype.iterateModel = function (obj, result) {
         for (let i = 0; i < obj.Count; i += 1) {
             if (!(obj[i] instanceof TFurnPanel)) {
@@ -70,7 +102,7 @@ const Reader = (function () {
                 edgeRight: this.getEdge('right', panel),
                 edgeTop: this.getEdge('top', panel),
                 edgeBottom: this.getEdge('bottom', panel),
-                holes: this.getHolesFromPanel(this.allHoles, panel),
+                holes: this.getHoles(panel),
                 cuts: this.getCuts(panel)
             };
 
@@ -129,56 +161,111 @@ const Reader = (function () {
         return butt;
     };
 
-    Reader.prototype.gatherAllHoles = function (node, result) {
-        for (let i = 0; i < node.Count; i++) {
-            let isFurniture = false;
-            //по завершению скрипта заменить проверку ниже на более изящное TFastener и проверить как будет работать
-            for (let key in node[i]) {
-                if (key === 'Holes') {
-                    isFurniture = true;
-                    break;
-                }
-            }
-            if (!isFurniture) {
-                if (node[i].List) {
-                    result = this.gatherAllHoles(node[i], result);
-                }
-                continue;
-            }
-            for (let j = 0; j < node[i].Holes.Count; j += 1) {
-                const hole = node[i].Holes[j];
-                result.push(
-                    {
-                        position: node[i].ToGlobal(hole.Position),
-                        endPosition: node[i].ToGlobal(hole.EndPosition()),
-                        direction: node[i].NToGlobal(hole.Direction),
-                        obj: hole
-                    }
-                );
-            }
-        }
+    Reader.prototype.getHoles = function(panel){
+        const holes = this.getHolesFromPanel(this.allHoles, panel);
+        return this.getBinartyHolesFormat(holes, panel);
+    };
 
+    Reader.prototype.getBinartyHolesFormat = function(holes, panel){
+        const result = [];
+        for(let i = 0; i < holes.length; i += 1){
+            const h = holes[i];
+            const name = 'д' + h.d + 'х' + h.dp;
+
+            const hole = {
+                name: name,
+                side: '',
+                edge: GetEdge(h, panel),
+                shortX: GetShortX(h, panel),
+                shortY: GetShortY(h, panel),
+                status: 'ok',
+                specX: '',
+                specY: '',
+                standard: 'false',
+                replacedOnName: '',
+                original: '',
+                x: Math.round(h.x),
+                y: Math.round(h.y),
+                params: {
+                    name: name,
+                    x: Math.round(h.x),
+                    y: Math.round(h.y),
+                    z: Math.round(h.z),
+                    direction: '',
+                    depth: h.dp,
+                    d: h.d
+                }
+            }
+            result.push(hole);
+        }
+        function GetEdge(hole, panel){
+            let edge;
+            if(hole.drillSide === 'left'){
+                edge = 'x1';
+            } else if(hole.drillSide === 'right'){
+                edge = 'x2';
+            } else if(hole.drillSide === 'top'){
+                edge = 'y1';
+            } else if(hole.drillSide === 'bottom'){
+                edge = 'y2';
+            } else if(hole.drillSide === 'front' || hole.drillSide === 'back'){
+                edge = 'x1';
+            }
+                return edge;
+        }
+        function GetShortX(hole, panel){
+            let shortX;
+            if(panel.TextureOrientation === 0 || panel.TextureOrientation === 2) {
+                if (
+                    hole.drillSide === 'left' ||
+                    hole.drillSide === 'right' ||
+                    hole.drillSide === 'front' ||
+                    hole.drillSide === 'back'
+                ) {
+                    shortX = hole.x < panel.ContourWidth ? hole.x : hole.x - panel.ContourWidth;
+                } else {
+                    shortX = 0;
+                }
+            }
+            return Math.round(shortX);
+        }
+        function GetShortY(hole, panel){
+            let shortY;
+            if(panel.TextureOrientation === 0 || panel.TextureOrientation === 2) {
+                if (
+                    hole.drillSide === 'top' ||
+                    hole.drillSide === 'bottom' ||
+                    hole.drillSide === 'front' ||
+                    hole.drillSide === 'back'
+                ) {
+                    shortY = hole.y < panel.ContourHeight ? hole.y : hole.y - panel.ContourHeight;
+                } else {
+                    shortY = 0;
+                }
+            }
+            return Math.round(shortY);
+        }
         return result;
     };
 
+
     Reader.prototype.getHolesFromPanel = function (holes, panel) {
-        const panelName = panel.Name;
         const MM = this.getMinMax(panel);
         const bores = [];
 
-        function Bore(plane, d, x, y, z, dp, drillType) {
+        function Bore(plane, d, x, y, z, dp, drillSide) {
             this.plane = plane;
             this.d = d;
             this.x = x;
             this.y = y;
             this.z = z;
             this.dp = dp;
-            this.drillType = drillType;
+            this.drillSide = drillSide;
         }
 
         for (let i = 0; i < holes.length; i += 1) {
             const hole = holes[i];
-
+            console.log(hole.obj.Diameter);
             const holePos = panel.GlobalToObject(hole.position);
             const holeDir = panel.NToObject(hole.direction);
 
@@ -192,26 +279,24 @@ const Reader = (function () {
 
             if (holePos.z < -(hole.obj.Depth + panel.Thickness) || holePos.z > (hole.obj.Depth + panel.Thickness)) {
                 //если отверстие не касается панели
-                console.log('not touch');
                 continue;
             }
             //Find bores to face or back
             if (Math.round(Math.abs(holeDir.z)) === 1 && panel.Contour.IsPointInside(holePos)) {
-                console.log('inside');
                 const hy = panel.TextureOrientation === 1 ? holePos.y + MM.minY : panel.ContourHeight - holePos.y + MM.minY;
                 if (holeDir.z > 0.001) {
                     const depth = this.rnd2(holePos.z + hole.obj.Depth);
                     if (holePos.z <= 0.001 && depth > 0) {
-                        const drillType = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'back' : 'throught';
-                        bores.push(new Bore(5, hole.obj.Diameter, holePos.x - MM.minX, hy, 0, depth, drillType));
+                        const drillSide = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'back' : 'throught';
+                        bores.push(new Bore(5, hole.obj.Diameter, holePos.x - MM.minX, hy, 0, depth, drillSide));
                         hole.used = this.isEqualFloat(holePos.z, 0) && (panel.Thickness >= hole.obj.Depth);
                     }
                     continue;
                 } else {
                     const depth = hole.obj.Depth - (holePos.z - panel.Thickness);
                     if ((holePos.z - panel.Thickness) >= -0.001 && depth >= 0.001) {
-                        const drillType = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'front' : 'throught';
-                        bores.push(new Bore(4, hole.obj.Diameter, holePos.x - MM.minX, hy, 0, depth, drillType));
+                        const drillSide = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'front' : 'throught';
+                        bores.push(new Bore(4, hole.obj.Diameter, holePos.x - MM.minX, hy, 0, depth, drillSide));
 
                         hole.used = this.isEqualFloat(holePos.z, panel.Thickness) && (panel.Thickness >= hole.obj.Depth);
                     }
@@ -222,15 +307,20 @@ const Reader = (function () {
             //ignore holes width direction to face or back or .. or ..
             if (this.rnd2(holeDir.z) !== 0 || holePos.z <= 0 || holePos.z >= panel.Thickness) continue;
             //??
-            let holeEndPos = panel.GlobalToObject(hole.EndPosition);
+            let holeEndPos = panel.GlobalToObject(hole.endPosition);
+
             if (panel.Contour.IsPointInside(holeEndPos)) {
                 const hdx = this.rnd2(holeDir.x);
                 const hdy = this.rnd2(holeDir.y);
-                holeEndPos = panel.GlobalToObject(hole.EndPosition);
+                holeEndPos = panel.GlobalToObject(hole.endPosition);
                 for (let j = 0; j < panel.Contour.Count; j++) {
                     const contour = panel.Contour[j];
                     const contourButt = contour.Data && contour.Data.Butt ? contour.Data.Butt : null;
                     const buttThickness = (contourButt && !contourButt.ClipPanel) ? contourButt.Thickness : 0;
+                    //console.log(holeEndPos);
+                    /*console.log(this.rnd2(contour.DistanceToPoint(holePos) + contour.DistanceToPoint(holeEndPos)),
+                        this.rnd2(hole.obj.Depth),
+                        this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness) > 2);*/
                     if (
                         this.rnd2(contour.DistanceToPoint(holePos) + contour.DistanceToPoint(holeEndPos)) === this.rnd2(hole.obj.Depth) &&
                         this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness) > 2
@@ -282,7 +372,7 @@ const Reader = (function () {
         /*           //
         for (let i = 0; i < bores.length; i+=1) {
             const bore = bores[i];
-            if(bore.drillType === 'back') continue;
+            if(bore.drillSide === 'back') continue;
             switch (bore.plane) {
                 case 0:
                 case 1:
