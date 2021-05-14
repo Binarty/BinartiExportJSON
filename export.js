@@ -295,7 +295,7 @@ const Reader = (function () {
                     hole.drillSide === 'right' ||
                     hole.drillSide === 'front' ||
                     hole.drillSide === 'back' ||
-                    hole.drillSide === 'trought'
+                    hole.drillSide === 'throught'
                 ) {
                     shortX = hole.y < panel.ContourHeight/2 ? -hole.y : panel.ContourHeight - hole.y;
                 } else {
@@ -307,7 +307,7 @@ const Reader = (function () {
                     hole.drillSide === 'bottom' ||
                     hole.drillSide === 'front' ||
                     hole.drillSide === 'back' ||
-                    hole.drillSide === 'trought'
+                    hole.drillSide === 'throught'
                 ) {
                     shortX = hole.x < panel.ContourWidth/2 ? hole.x : -(panel.ContourWidth - hole.x);
                 } else {
@@ -327,7 +327,7 @@ const Reader = (function () {
                     hole.drillSide === 'bottom' ||
                     hole.drillSide === 'front' ||
                     hole.drillSide === 'back' ||
-                    hole.drillSide === 'trought'
+                    hole.drillSide === 'throught'
                 ) {
                     shortY = hole.x < panel.ContourWidth/2 ? hole.x : hole.x - panel.ContourWidth;
                 } else {
@@ -339,7 +339,7 @@ const Reader = (function () {
                     hole.drillSide === 'right' ||
                     hole.drillSide === 'front' ||
                     hole.drillSide === 'back' ||
-                    hole.drillSide === 'trought'
+                    hole.drillSide === 'throught'
                 ) {
                     shortY = hole.y < panel.ContourHeight/2 ? hole.y : -(panel.ContourHeight - hole.y);
                 } else {
