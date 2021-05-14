@@ -80,6 +80,10 @@ const Reader = (function () {
                 continue;
             }
             const panel = obj[i];
+            const width = Math.round(panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourWidth);
+            const height = Math.round(panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourHeight)
+
+            console.log(panel.Position);
 
             const panelData = {
                 product: 'rect',
@@ -87,8 +91,8 @@ const Reader = (function () {
                 glued: false,
                 quantity: 1,
                 name: panel.Name,
-                width: panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourWidth,
-                height: panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourHeight,
+                width: width,
+                height: height,
                 thickness: Math.round(panel.Thickness),
                 material: {
                     id: '',
@@ -105,6 +109,8 @@ const Reader = (function () {
                 isRemainder: false,
                 getWithOrder: false
             };
+
+
 
             result.push(panelData);
         }
@@ -288,7 +294,8 @@ const Reader = (function () {
                     hole.drillSide === 'left' ||
                     hole.drillSide === 'right' ||
                     hole.drillSide === 'front' ||
-                    hole.drillSide === 'back'
+                    hole.drillSide === 'back' ||
+                    hole.drillSide === 'trought'
                 ) {
                     shortX = hole.y < panel.ContourHeight/2 ? -hole.y : panel.ContourHeight - hole.y;
                 } else {
@@ -299,7 +306,8 @@ const Reader = (function () {
                     hole.drillSide === 'top' ||
                     hole.drillSide === 'bottom' ||
                     hole.drillSide === 'front' ||
-                    hole.drillSide === 'back'
+                    hole.drillSide === 'back' ||
+                    hole.drillSide === 'trought'
                 ) {
                     shortX = hole.x < panel.ContourWidth/2 ? hole.x : -(panel.ContourWidth - hole.x);
                 } else {
@@ -318,7 +326,8 @@ const Reader = (function () {
                     hole.drillSide === 'top' ||
                     hole.drillSide === 'bottom' ||
                     hole.drillSide === 'front' ||
-                    hole.drillSide === 'back'
+                    hole.drillSide === 'back' ||
+                    hole.drillSide === 'trought'
                 ) {
                     shortY = hole.x < panel.ContourWidth/2 ? hole.x : hole.x - panel.ContourWidth;
                 } else {
@@ -329,7 +338,8 @@ const Reader = (function () {
                     hole.drillSide === 'left' ||
                     hole.drillSide === 'right' ||
                     hole.drillSide === 'front' ||
-                    hole.drillSide === 'back'
+                    hole.drillSide === 'back' ||
+                    hole.drillSide === 'trought'
                 ) {
                     shortY = hole.y < panel.ContourHeight/2 ? hole.y : -(panel.ContourHeight - hole.y);
                 } else {
@@ -393,7 +403,10 @@ const Reader = (function () {
 
         for (let i = 0; i < holes.length; i += 1) {
             const hole = holes[i];
+
             const holePos = panel.GlobalToObject(hole.position);
+            console.log(holePos);
+            console.log(hole.position);
             const holeDir = panel.NToObject(hole.direction);
 
             if (holePos.z < -(hole.obj.Depth + panel.Thickness) || holePos.z > (hole.obj.Depth + panel.Thickness)) {
