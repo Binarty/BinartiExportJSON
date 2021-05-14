@@ -665,7 +665,10 @@ const Reader = (function () {
         json = JSON.stringify(json);
 
         //save
-        FS.writeFileSync('./test.json', json);
+        const path = system.askFileNameSave('json');
+        if(path) {
+            FS.writeFileSync(path, json);
+        }
     };
 
     Reader.prototype.isEqualFloat = function (v1, v2) {
