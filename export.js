@@ -173,6 +173,7 @@ const Reader = (function () {
     };
 
     Reader.prototype.getBinartyHolesFormat = function (holes, panel) {
+
         const result = [];
         for (let i = 0; i < holes.length; i += 1) {
             const h = holes[i];
@@ -388,7 +389,75 @@ const Reader = (function () {
         return result;
     };
 
+    Reader.prototype.getMinMax = function (node) {
+        let minX = 1000000;
+        let minY = 1000000;
+        let maxX = -1000000;
+        let maxY = -1000000;
+        if (node.Contour.Count > 0) {
+            for (let i = 0; i < node.Contour.Count; i += 1) {
+                const contour = node.Contour[i];
+                if (contour.ElType === 1) {
+                    minX = Math.min(minX, contour.Pos1.x);
+                    minY = Math.min(minY, contour.Pos1.y);
+                    maxX = Math.max(maxX, contour.Pos1.x);
+                    maxY = Math.max(maxY, contour.Pos1.y);
+                    minX = Math.min(minX, contour.Pos2.x);
+                    minY = Math.min(minY, contour.Pos2.y);
+                    maxX = Math.max(maxX, contour.Pos2.x);
+                    maxY = Math.max(maxY, contour.Pos2.y);
+                } else if (contour.ElType === 2) {
+
+                    if (contour.AngleOnArc(Math.PI)) {
+                        minX = Math.min(minX, contour.Center.x - contour.ArcRadius());
+                    } else {
+                        minX = Math.min(minX, contour.Pos1.x);
+                        minX = Math.min(minX, contour.Pos2.x);
+                    }
+
+                    if (contour.AngleOnArc(0) || contour.AngleOnArc(Math.PI * 2.0)) {
+                        maxX = Math.max(maxX, contour.Center.x + contour.ArcRadius());
+                    } else {
+                        maxX = Math.max(maxX, contour.Pos1.x);
+                        maxX = Math.max(maxX, contour.Pos2.x);
+                    }
+                    if (contour.AngleOnArc((Math.PI * 3.0) / 2.0)) {
+                        minY = Math.min(minY, contour.Center.y - contour.ArcRadius());
+                    } else {
+                        minY = Math.min(minY, contour.Pos1.y);
+                        minY = Math.min(minY, contour.Pos2.y);
+                    }
+                    if (contour.AngleOnArc(Math.PI / 2.0)) {
+                        maxY = Math.max(maxY, contour.Center.y + contour.ArcRadius());
+                    } else {
+                        maxY = Math.max(maxY, contour.Pos1.y);
+                        maxY = Math.max(maxY, contour.Pos2.y);
+                    }
+                } else if (elem.ElType === 3) {
+                    minX = Math.min(minX, contour.Center.x - contour.CirRadius);
+                    minY = Math.min(minY, contour.Center.y - contour.CirRadius);
+                    maxX = Math.max(maxX, contour.Center.x + contour.CirRadius);
+                    maxY = Math.max(maxY, contour.Center.y + contour.CirRadius);
+                }
+            }
+        } else {
+            minX = node.GMin.x;
+            minY = node.GMin.y;
+            maxX = node.GMax.x;
+            maxY = node.GMax.y;
+        }
+
+
+        return {
+            minX: minX,
+            minY: minY,
+            maxX: maxX,
+            maxY: maxY
+        };
+    };
+
     Reader.prototype.getHolesFromPanel = function (holes, panel) {
+        const MM = this.getMinMax(panel);
         const bores = [];
 
         function Bore(plane, d, x, y, z, dp, drillSide) {
@@ -419,7 +488,7 @@ const Reader = (function () {
                     const depth = this.rnd2(holePos.z + hole.obj.Depth);
                     if (holePos.z <= 0.001 && depth > 0) {
                         const drillSide = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'back' : 'throught';
-                        bores.push(new Bore(5, hole.obj.Diameter, holePos.x, holePos.y, 0, depth, drillSide));
+                        bores.push(new Bore(5, hole.obj.Diameter, holePos.x - MM.minX, holePos.y + MM.minY, 0, depth, drillSide));
                         hole.used = this.isEqualFloat(holePos.z, 0) && (panel.Thickness >= hole.obj.Depth);
                     }
                     continue;
@@ -427,7 +496,7 @@ const Reader = (function () {
                     const depth = hole.obj.Depth - (holePos.z - panel.Thickness);
                     if ((holePos.z - panel.Thickness) >= -0.001 && depth >= 0.001) {
                         const drillSide = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'front' : 'throught';
-                        bores.push(new Bore(4, hole.obj.Diameter, holePos.x, holePos.y, 0, depth, drillSide));
+                        bores.push(new Bore(4, hole.obj.Diameter, holePos.x - MM.minX, holePos.y + MM.minY, 0, depth, drillSide));
                         hole.used = this.isEqualFloat(holePos.z, panel.Thickness) && (panel.Thickness >= hole.obj.Depth);
                     }
                     continue;
@@ -452,18 +521,18 @@ const Reader = (function () {
                     ) {
                         const depth = this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness);
                         if (hdx === 1) {
-                            bores.push(new Bore(2, hole.obj.Diameter, 0, holePos.y, panel.Thickness - holePos.z, depth, 'left'));
+                            bores.push(new Bore(2, hole.obj.Diameter, 0, holePos.y + MM.minY, panel.Thickness - holePos.z, depth, 'left'));
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
                             break;
                         } else if (hdx === -1) {
-                            bores.push(new Bore(3, hole.obj.Diameter, 0, holePos.y, panel.Thickness - holePos.z, depth, 'right'));
+                            bores.push(new Bore(3, hole.obj.Diameter, 0, holePos.y + MM.minY, panel.Thickness - holePos.z, depth, 'right'));
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
                             break;
                         } else if (hdx === 0) {
                             if (hdy === 1) {
-                                bores.push(new Bore(1, hole.obj.Diameter, holePos.x, 0, panel.Thickness - holePos.z, depth, 'bottom'));
+                                bores.push(new Bore(1, hole.obj.Diameter, holePos.x - MM.minX, 0, panel.Thickness - holePos.z, depth, 'bottom'));
                             } else if (hdy === -1) {
-                                bores.push(new Bore(0, hole.obj.Diameter, holePos.x, 0, panel.Thickness - holePos.z, depth, 'top'));
+                                bores.push(new Bore(0, hole.obj.Diameter, holePos.x - MM.minX, 0, panel.Thickness - holePos.z, depth, 'top'));
                             }
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
                             break;
