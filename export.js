@@ -83,8 +83,6 @@ const Reader = (function () {
             const width = Math.round(panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourWidth);
             const height = Math.round(panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourHeight)
 
-            console.log(panel.Position);
-
             const panelData = {
                 product: 'rect',
                 type: 'element',
@@ -474,8 +472,6 @@ const Reader = (function () {
             const hole = holes[i];
 
             const holePos = panel.GlobalToObject(hole.position);
-            console.log(holePos);
-            console.log(hole.position);
             const holeDir = panel.NToObject(hole.direction);
 
             if (holePos.z < -(hole.obj.Depth + panel.Thickness) || holePos.z > (hole.obj.Depth + panel.Thickness)) {
