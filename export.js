@@ -104,7 +104,6 @@ const Reader = (function () {
                 rotation: { x: 0, y: 0, z: 0 },
                 isRemainder: false,
                 getWithOrder: false
-
             };
 
             result.push(panelData);
@@ -123,23 +122,23 @@ const Reader = (function () {
         };
         if (panel.TextureOrientation === 1) {
             if (type === 'bottom') {
-                butt = this.getButtByElemIndex(panel.Butts, 2);
+                butt = this.getButtByElemIndex(panel.Butts, 1);
             } else if (type === 'top') {
                 butt = this.getButtByElemIndex(panel.Butts, 3);
             } else if (type === 'left') {
                 butt = this.getButtByElemIndex(panel.Butts, 0);
             } else if (type === 'right') {
-                butt = this.getButtByElemIndex(panel.Butts, 1);
+                butt = this.getButtByElemIndex(panel.Butts, 2);
             }
         } else {
             if (type === 'bottom') {
                 butt = this.getButtByElemIndex(panel.Butts, 0);
             } else if (type === 'top') {
-                butt = this.getButtByElemIndex(panel.Butts, 1);
+                butt = this.getButtByElemIndex(panel.Butts, 2);
             } else if (type === 'left') {
                 butt = this.getButtByElemIndex(panel.Butts, 3);
             } else if (type === 'right') {
-                butt = this.getButtByElemIndex(panel.Butts, 2);
+                butt = this.getButtByElemIndex(panel.Butts, 1);
             }
         }
         if (!butt) return buttData;
@@ -171,7 +170,7 @@ const Reader = (function () {
         const result = [];
         for (let i = 0; i < holes.length; i += 1) {
             const h = holes[i];
-            const name = 'д' + h.d + 'х' + h.dp;
+            const name = 'д' + Math.round(h.d) + 'х' + Math.round(h.dp);
 
             const hole = {
                 name: name,
@@ -194,8 +193,8 @@ const Reader = (function () {
                     y: GetY(h, panel),
                     z: GetZ(h, panel),
                     direction: GetDirection(h, panel),
-                    depth: h.dp,
-                    d: h.d
+                    depth: Math.round(h.dp),
+                    d: Math.round(h.d)
                 }
             }
             result.push(hole);
@@ -228,16 +227,29 @@ const Reader = (function () {
                     }
                 }
             } else {
-                if (hole.drillSide === 'top') {
-                    edge = 'x1';
-                } else if (hole.drillSide === 'bottom') {
-                    edge = 'x2';
-                } else if (hole.drillSide === 'right') {
+                if (hole.drillSide === 'left') {
                     edge = 'y1';
-                } else if (hole.drillSide === 'left') {
+                } else if (hole.drillSide === 'right') {
                     edge = 'y2';
-                } else if (hole.drillSide === 'front' || hole.drillSide === 'back') {
+                } else if (hole.drillSide === 'top') {
+                    edge = 'x2';
+                } else if (hole.drillSide === 'bottom') {
                     edge = 'x1';
+                } else if (hole.drillSide === 'front' || hole.drillSide === 'back') {
+                    const minX = hole.x,
+                        maxX = Math.abs(panel.ContourWidth - hole.x),
+                        minY = hole.y,
+                        maxY = Math.abs(panel.ContourHeight - hole.y);
+                    const min = Math.min(minX, maxX, minY, maxY);
+                    if (min === minX) {
+                        edge = 'y1';
+                    } else if (min === maxX) {
+                        edge = 'y2';
+                    } else if (min === minY) {
+                        edge = 'x1';
+                    } else if (min === maxY) {
+                        edge = 'x2';
+                    }
                 }
             }
             return edge;
@@ -282,11 +294,20 @@ const Reader = (function () {
                 } else {
                     shortX = 0;
                 }
-                shortX = Math.round(shortX);
-                if(shortX === 0){
-                    shortX = '';
+            } else {
+                if (
+                    hole.drillSide === 'top' ||
+                    hole.drillSide === 'bottom' ||
+                    hole.drillSide === 'front' ||
+                    hole.drillSide === 'back'
+                ) {
+                    shortX = hole.x < panel.ContourWidth/2 ? hole.x : -(panel.ContourWidth - hole.x);
+                } else {
+                    shortX = 0;
                 }
             }
+            shortX = Math.round(shortX);
+            shortX = shortX === 0 ? '' : shortX;
 
             return shortX;
         }
@@ -303,11 +324,20 @@ const Reader = (function () {
                 } else {
                     shortY = 0;
                 }
-                shortY = Math.round(shortY);
-                if(shortY === 0){
-                    shortY = '';
+            } else {
+                if (
+                    hole.drillSide === 'left' ||
+                    hole.drillSide === 'right' ||
+                    hole.drillSide === 'front' ||
+                    hole.drillSide === 'back'
+                ) {
+                    shortY = hole.y < panel.ContourHeight/2 ? hole.y : -(panel.ContourHeight - hole.y);
+                } else {
+                    shortY = 0;
                 }
             }
+            shortY = Math.round(shortY);
+            shortY = shortY === 0 ? '' : shortY;
             return shortY;
         }
         function GetDirection(hole, panel){
@@ -327,15 +357,28 @@ const Reader = (function () {
                     dir = 'x';
                 }
                 return dir;
+            } else {
+                if (hole.drillSide === 'front') {
+                    dir = '-z';
+                } else if (hole.drillSide === 'back') {
+                    dir = 'z';
+                } else if (hole.drillSide === 'left') {
+                    dir = 'x';
+                } else if (hole.drillSide === 'right') {
+                    dir = '-x';
+                } else if (hole.drillSide === 'top') {
+                    dir = '-y';
+                } else if (hole.drillSide === 'bottom') {
+                    dir = 'y';
+                }
+                return dir;
             }
         }
 
         return result;
     };
 
-
     Reader.prototype.getHolesFromPanel = function (holes, panel) {
-        //const MM = this.getMinMax(panel);
         const bores = [];
 
         function Bore(plane, d, x, y, z, dp, drillSide) {
@@ -353,21 +396,12 @@ const Reader = (function () {
             const holePos = panel.GlobalToObject(hole.position);
             const holeDir = panel.NToObject(hole.direction);
 
-            /*            holeDir
-                          T: y=1
-                       -------------
-               L: x=1  |  F: z=-1  | R: x=-1
-                       |  B: z= 1  |
-                       -------------
-                          B: y=-1               */
-
             if (holePos.z < -(hole.obj.Depth + panel.Thickness) || holePos.z > (hole.obj.Depth + panel.Thickness)) {
                 //если отверстие не касается панели
                 continue;
             }
             //Find bores to face or back
             if (Math.round(Math.abs(holeDir.z)) === 1 && panel.Contour.IsPointInside(holePos)) {
-                //const hy = panel.TextureOrientation === 1 ? holePos.y + MM.minY : panel.ContourHeight - holePos.y + MM.minY;
                 if (holeDir.z > 0.001) {
                     const depth = this.rnd2(holePos.z + hole.obj.Depth);
                     if (holePos.z <= 0.001 && depth > 0) {
@@ -389,7 +423,6 @@ const Reader = (function () {
 
             //ignore holes width direction to face or back or .. or ..
             if (this.rnd2(holeDir.z) !== 0 || holePos.z <= 0 || holePos.z >= panel.Thickness) continue;
-            //??
             let holeEndPos = panel.GlobalToObject(hole.endPosition);
 
             if (panel.Contour.IsPointInside(holeEndPos)) {
@@ -400,16 +433,11 @@ const Reader = (function () {
                     const contour = panel.Contour[j];
                     const contourButt = contour.Data && contour.Data.Butt ? contour.Data.Butt : null;
                     const buttThickness = (contourButt && !contourButt.ClipPanel) ? contourButt.Thickness : 0;
-                    //console.log(holeEndPos);
-                    /*console.log(this.rnd2(contour.DistanceToPoint(holePos) + contour.DistanceToPoint(holeEndPos)),
-                        this.rnd2(hole.obj.Depth),
-                        this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness) > 2);*/
                     if (
                         this.rnd2(contour.DistanceToPoint(holePos) + contour.DistanceToPoint(holeEndPos)) === this.rnd2(hole.obj.Depth) &&
                         this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness) > 2
                     ) {
                         const depth = this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness);
-                        //const hy = panel.TextureOrientation === 1 ? holePos.y + MM.minY : panel.ContourHeight - holePos.y + MM.minY;
                         if (hdx === 1) {
                             bores.push(new Bore(2, hole.obj.Diameter, 0, holePos.y, panel.Thickness - holePos.z, depth, 'left'));
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
@@ -422,7 +450,7 @@ const Reader = (function () {
                             if (hdy === 1) {
                                 bores.push(new Bore(1, hole.obj.Diameter, holePos.x, 0, panel.Thickness - holePos.z, depth, 'bottom'));
                             } else if (hdy === -1) {
-                                bores.push(new Bore(0, hole.obj.Diameter, holePos.x, 0, panel.Thickness - holePos.z, depth), 'top');
+                                bores.push(new Bore(0, hole.obj.Diameter, holePos.x, 0, panel.Thickness - holePos.z, depth, 'top'));
                             }
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
                             break;
@@ -431,73 +459,6 @@ const Reader = (function () {
                 }
             }
         }
-
-        /*
-        //если спереди ничего нет
-        if (part.bFront.length == 0 && part.cFront.length == 0 && (part.bBack.length > 0 || part.cBack.length > 0))
-        {
-            part.offsetX = part.dl - (part.cl + (MM.minX - panel.GMin.x));
-            var te = part.el[2];
-            part.el[2] = part.el[3];
-            part.el[3] = te;
-        */
-        /* part.el
-        0: OpEdge {name: "Кромка ПВХ, 19/2 мм, Белый, DC 438B, Dollken
-        1770", t: 2, w: 19, …}
-        allowance: 0
-        clipPanel: false
-        id: 1
-        name: "Кромка ПВХ, 19/2 мм, Белый, DC 438B, Dollken 1770"
-        parts: Array(1) [Object]
-        sign: "Белый 2/19"
-        t: 2
-        w: 19*/
-        /*           //
-        for (let i = 0; i < bores.length; i+=1) {
-            const bore = bores[i];
-            if(bore.drillSide === 'back') continue;
-            switch (bore.plane) {
-                case 0:
-                case 1:
-                    bore.x = panel.ContourWidth - bore.x;
-                    bore.z = panel.Thickness - bore.z;
-                    break;
-                case 2:
-                    bore.plane = 3;
-                    bore.z = panel.Thickness - bore.z;
-                    break;
-                case 3:
-                    bore.plane = 2;
-                    bore.z = panel.Thickness - bore.z;
-                    break;
-                case 4:
-                case 5:
-                    bore.x = panel.ContourWidth - bore.x;
-                    break;
-            }
-        }
-
-        for (let i = 0; i < panel.Contour.Count; i+=1) {
-            const contour = panel.Contour[i];
-            if (contour.path[0].Type !== 3)
-                contour.clockOtherWise = !contour.clockOtherWise;
-            for (let j = 0; j < contour.path.length; j+=1) {
-                const contElement = contour.path[j];
-                if (contElement.Type === 1) {
-                    contElement.sx = panel.ContourWidth - contElement.sx;
-                    contElement.ex = panel.ContourWidth - contElement.ex;
-                } else if (contElement.Type === 2) {
-                    contElement.sx = panel.ContourWidth - contElement.sx;
-                    contElement.ex = panel.ContourWidth - contElement.ex;
-                    contElement.cx = panel.ContourWidth - contElement.cx;
-                    contElement.dir = !contElement.dir;
-                } else if (contElement.Type === 3) {
-                    contElement.cx = panel.ContourWidth - contElement.cx;
-                }
-            }
-        }
-    }
-*/
 
         return bores;
     };
@@ -530,6 +491,12 @@ const Reader = (function () {
                 } else{
                     x = Math.round(cut.pos);
                 }
+            } else {
+                if(cut.dir === 'v'){
+                    x = Math.round(cut.pos);
+                } else{
+                    x = '0';
+                }
             }
             return x;
         }
@@ -540,6 +507,12 @@ const Reader = (function () {
                     y = Math.round(cut.pos);
                 } else{
                     y = '0';
+                }
+            } else {
+                if(cut.dir === 'v'){
+                    y = '0';
+                } else {
+                    y = Math.round(cut.pos);
                 }
             }
             return y;
@@ -697,73 +670,6 @@ const Reader = (function () {
 
     Reader.prototype.isEqualFloat = function (v1, v2) {
         return Math.abs(v1 - v2) < 0.001;
-    };
-
-    Reader.prototype.getMinMax = function (node) {
-        let minX = 1000000;
-        let minY = 1000000;
-        let maxX = -1000000;
-        let maxY = -1000000;
-        if (node.Contour.Count > 0) {
-            for (let i = 0; i < node.Contour.Count; i += 1) {
-                const contour = node.Contour[i];
-                if (contour.ElType === 1) {
-                    minX = Math.min(minX, contour.Pos1.x);
-                    minY = Math.min(minY, contour.Pos1.y);
-                    maxX = Math.max(maxX, contour.Pos1.x);
-                    maxY = Math.max(maxY, contour.Pos1.y);
-                    minX = Math.min(minX, contour.Pos2.x);
-                    minY = Math.min(minY, contour.Pos2.y);
-                    maxX = Math.max(maxX, contour.Pos2.x);
-                    maxY = Math.max(maxY, contour.Pos2.y);
-                } else if (contour.ElType === 2) {
-
-                    if (contour.AngleOnArc(Math.PI)) {
-                        minX = Math.min(minX, contour.Center.x - contour.ArcRadius());
-                    } else {
-                        minX = Math.min(minX, contour.Pos1.x);
-                        minX = Math.min(minX, contour.Pos2.x);
-                    }
-
-                    if (contour.AngleOnArc(0) || contour.AngleOnArc(Math.PI * 2.0)) {
-                        maxX = Math.max(maxX, contour.Center.x + contour.ArcRadius());
-                    } else {
-                        maxX = Math.max(maxX, contour.Pos1.x);
-                        maxX = Math.max(maxX, contour.Pos2.x);
-                    }
-                    if (contour.AngleOnArc((Math.PI * 3.0) / 2.0)) {
-                        minY = Math.min(minY, contour.Center.y - contour.ArcRadius());
-                    } else {
-                        minY = Math.min(minY, contour.Pos1.y);
-                        minY = Math.min(minY, contour.Pos2.y);
-                    }
-                    if (contour.AngleOnArc(Math.PI / 2.0)) {
-                        maxY = Math.max(maxY, contour.Center.y + contour.ArcRadius());
-                    } else {
-                        maxY = Math.max(maxY, contour.Pos1.y);
-                        maxY = Math.max(maxY, contour.Pos2.y);
-                    }
-                } else if (contour.ElType === 3) {
-                    minX = Math.min(minX, contour.Center.x - contour.CirRadius);
-                    minY = Math.min(minY, contour.Center.y - contour.CirRadius);
-                    maxX = Math.max(maxX, contour.Center.x + contour.CirRadius);
-                    maxY = Math.max(maxY, contour.Center.y + contour.CirRadius);
-                }
-            }
-        } else {
-            minX = node.GMin.x;
-            minY = node.GMin.y;
-            maxX = node.GMax.x;
-            maxY = node.GMax.y;
-        }
-
-
-        return {
-            minX: minX,
-            minY: minY,
-            maxX: maxX,
-            maxY: maxY
-        };
     };
 
     Reader.prototype.rnd2 = function (val) {
