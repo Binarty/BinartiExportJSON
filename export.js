@@ -171,7 +171,6 @@ const Reader = (function () {
     };
 
     Reader.prototype.getBinartyHolesFormat = function (holes, panel) {
-
         const result = [];
         for (let i = 0; i < holes.length; i += 1) {
             const h = holes[i];
@@ -265,6 +264,11 @@ const Reader = (function () {
                 x = panel.ContourHeight - hole.y;
             } else {
                 x = hole.x;
+                // if(x === 0){
+                //     if(hole.plane === 3){
+                //
+                //     }
+                // }
             }
             return Math.round(x);
         }
@@ -515,20 +519,23 @@ const Reader = (function () {
                         this.rnd2(contour.DistanceToPoint(holePos) + contour.DistanceToPoint(holeEndPos)) === this.rnd2(hole.obj.Depth) &&
                         this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness) > 2
                     ) {
+
                         const depth = this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness);
                         if (hdx === 1) {
                             bores.push(new Bore(2, hole.obj.Diameter, 0, holePos.y + MM.minY, panel.Thickness - holePos.z, depth, 'left'));
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
                             break;
                         } else if (hdx === -1) {
-                            bores.push(new Bore(3, hole.obj.Diameter, 0, holePos.y + MM.minY, panel.Thickness - holePos.z, depth, 'right'));
+                            const width = panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourHeight;
+                            bores.push(new Bore(3, hole.obj.Diameter, width, holePos.y + MM.minY, panel.Thickness - holePos.z, depth, 'right'));
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
                             break;
                         } else if (hdx === 0) {
                             if (hdy === 1) {
                                 bores.push(new Bore(1, hole.obj.Diameter, holePos.x - MM.minX, 0, panel.Thickness - holePos.z, depth, 'bottom'));
                             } else if (hdy === -1) {
-                                bores.push(new Bore(0, hole.obj.Diameter, holePos.x - MM.minX, 0, panel.Thickness - holePos.z, depth, 'top'));
+                                const height = panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourWidth;
+                                bores.push(new Bore(0, hole.obj.Diameter, holePos.x - MM.minX, height, panel.Thickness - holePos.z, depth, 'top'));
                             }
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
                             break;
