@@ -1,4 +1,4 @@
-﻿const FS = require('fs'),
+const FS = require('fs'),
     PATH = require('path');
 
 const VERSION = "1.0";
