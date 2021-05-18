@@ -1,4 +1,4 @@
-const FS = require('fs'),
+﻿const FS = require('fs'),
     PATH = require('path');
 
 const VERSION = "1.0";
@@ -281,11 +281,11 @@ const Reader = (function () {
             }
             return Math.round(y);
         }
-        function GetZ(hole, panel){
+        function GetZ(hole, panel) {
             let z = hole.z;
-            if(hole.drillSide === 'front'){
+            if (hole.drillSide === 'front') {
                 z = panel.Thickness;
-            } else if(hole.drillSide === 'back'){
+            } else if (hole.drillSide === 'back') {
                 z = 0;
             }
             return Math.round(z);
@@ -300,7 +300,7 @@ const Reader = (function () {
                     hole.drillSide === 'back' ||
                     hole.drillSide === 'throught'
                 ) {
-                    shortX = hole.y < panel.ContourHeight/2 ? -hole.y : panel.ContourHeight - hole.y;
+                    shortX = hole.y < panel.ContourHeight / 2 ? -hole.y : panel.ContourHeight - hole.y;
                 } else {
                     shortX = 0;
                 }
@@ -312,7 +312,7 @@ const Reader = (function () {
                     hole.drillSide === 'back' ||
                     hole.drillSide === 'throught'
                 ) {
-                    shortX = hole.x < panel.ContourWidth/2 ? hole.x : -(panel.ContourWidth - hole.x);
+                    shortX = hole.x < panel.ContourWidth / 2 ? hole.x : -(panel.ContourWidth - hole.x);
                 } else {
                     shortX = 0;
                 }
@@ -332,7 +332,7 @@ const Reader = (function () {
                     hole.drillSide === 'back' ||
                     hole.drillSide === 'throught'
                 ) {
-                    shortY = hole.x < panel.ContourWidth/2 ? hole.x : hole.x - panel.ContourWidth;
+                    shortY = hole.x < panel.ContourWidth / 2 ? hole.x : hole.x - panel.ContourWidth;
                 } else {
                     shortY = 0;
                 }
@@ -344,7 +344,7 @@ const Reader = (function () {
                     hole.drillSide === 'back' ||
                     hole.drillSide === 'throught'
                 ) {
-                    shortY = hole.y < panel.ContourHeight/2 ? hole.y : -(panel.ContourHeight - hole.y);
+                    shortY = hole.y < panel.ContourHeight / 2 ? hole.y : -(panel.ContourHeight - hole.y);
                 } else {
                     shortY = 0;
                 }
@@ -353,7 +353,7 @@ const Reader = (function () {
             shortY = shortY === 0 ? '' : shortY;
             return shortY;
         }
-        function GetDirection(hole, panel){
+        function GetDirection(hole, panel) {
             let dir;
             if (panel.TextureOrientation === 0 || panel.TextureOrientation === 2) {
                 if (hole.drillSide === 'front') {
@@ -548,12 +548,12 @@ const Reader = (function () {
         return bores;
     };
 
-    Reader.prototype.getCuts = function(panel){
+    Reader.prototype.getCuts = function (panel) {
         const cuts = this.getCutsFromPanel(panel);
         return this.getBinartyCutsFormat(cuts, panel);
     };
 
-    Reader.prototype.getBinartyCutsFormat = function(cuts, panel){
+    Reader.prototype.getBinartyCutsFormat = function (cuts, panel) {
         const result = [];
         for (let i = 0; i < cuts.length; i += 1) {
             const c = cuts[i];
@@ -568,33 +568,33 @@ const Reader = (function () {
             };
             result.push(cut);
         }
-        function GetX(cut, panel){
+        function GetX(cut, panel) {
             let x;
-            if(panel.TextureOrientation === 0 || panel.TextureOrientation === 2){
-                if(cut.dir === 'v'){
+            if (panel.TextureOrientation === 0 || panel.TextureOrientation === 2) {
+                if (cut.dir === 'v') {
                     x = '0';
-                } else{
+                } else {
                     x = Math.round(cut.pos);
                 }
             } else {
-                if(cut.dir === 'v'){
+                if (cut.dir === 'v') {
                     x = Math.round(cut.pos);
-                } else{
+                } else {
                     x = '0';
                 }
             }
             return x;
         }
-        function GetY(cut, panel){
+        function GetY(cut, panel) {
             let y;
-            if(panel.TextureOrientation === 0 || panel.TextureOrientation === 2){
-                if(cut.dir === 'v'){
+            if (panel.TextureOrientation === 0 || panel.TextureOrientation === 2) {
+                if (cut.dir === 'v') {
                     y = Math.round(cut.pos);
-                } else{
+                } else {
                     y = '0';
                 }
             } else {
-                if(cut.dir === 'v'){
+                if (cut.dir === 'v') {
                     y = '0';
                 } else {
                     y = Math.round(cut.pos);
@@ -751,7 +751,7 @@ const Reader = (function () {
 
         //save
         const path = system.askFileNameSave('json');
-        if(path) {
+        if (path) {
             FS.writeFileSync(path, json);
         }
     };
