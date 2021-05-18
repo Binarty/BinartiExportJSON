@@ -526,7 +526,7 @@ const Reader = (function () {
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
                             break;
                         } else if (hdx === -1) {
-                            const width = panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourHeight;
+                            const width = panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourWidth;
                             bores.push(new Bore(3, hole.obj.Diameter, width, holePos.y + MM.minY, panel.Thickness - holePos.z, depth, 'right'));
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
                             break;
@@ -534,7 +534,7 @@ const Reader = (function () {
                             if (hdy === 1) {
                                 bores.push(new Bore(1, hole.obj.Diameter, holePos.x - MM.minX, 0, panel.Thickness - holePos.z, depth, 'bottom'));
                             } else if (hdy === -1) {
-                                const height = panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourWidth;
+                                const height = panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourHeight;
                                 bores.push(new Bore(0, hole.obj.Diameter, holePos.x - MM.minX, height, panel.Thickness - holePos.z, depth, 'top'));
                             }
                             hole.used = this.isEqualFloat(depth, hole.obj.Depth);
