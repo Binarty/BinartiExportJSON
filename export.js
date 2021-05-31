@@ -174,10 +174,10 @@ const Reader = (function () {
         const result = [];
         for (let i = 0; i < holes.length; i += 1) {
             const h = holes[i];
-            const name = 'д' + Math.round(h.d) + 'х' + Math.round(h.dp);
+            const code = 'д' + Math.round(h.d) + 'х' + Math.round(h.dp);
 
             const hole = {
-                name: name,
+                code: code,
                 side: h.plane === 5 ? 'Т' : 'Л',
                 edge: GetEdge(h, panel),
                 shortX: GetShortX(h, panel),
@@ -186,13 +186,11 @@ const Reader = (function () {
                 specX: GetShortX(h, panel),
                 specY: GetShortY(h, panel),
                 standard: 'false',
-                replacedOnName: '',
-                original: '',
                 x: GetX(h, panel),
                 y: GetY(h, panel),
                 old: h,
                 params: {
-                    name: name,
+                    name: code,
                     x: GetX(h, panel),
                     y: GetY(h, panel),
                     z: GetZ(h, panel),
@@ -559,7 +557,7 @@ const Reader = (function () {
             const c = cuts[i];
 
             const cut = {
-                name: 'Паз',
+                name: 'Groove',
                 x: GetX(c, panel),
                 y: GetY(c, panel),
                 direction: c.side === 'front' ? '-z' : 'z',
