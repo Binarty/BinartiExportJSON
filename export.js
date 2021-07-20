@@ -81,9 +81,9 @@ const Reader = (function () {
             }
             const panel = obj[i];
             const width = Math.round(panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourWidth);
-            const height = Math.round(panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourHeight)
+            const height = Math.round(panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourHeight);
 
-            const panelData = {
+            let panelData = {
                 product: 'rect',
                 type: 'element',
                 glued: false,
@@ -108,12 +108,75 @@ const Reader = (function () {
                 getWithOrder: false
             };
 
-
+            panelData = this.clipPanel(panelData);
 
             result.push(panelData);
         }
 
         return result;
+    };
+
+    Reader.prototype.clipPanel = function (data) {
+
+        if (data.edgeLeft.clipPanel) {
+            const edgeThickness = Math.round(data.edgeLeft.thickness);
+            if (data.edgeLeft.thickness) data.width = data.width - edgeThickness;
+
+            for (let i = 0; i < data.holes.length; i += 1) {
+                const h = data.holes[i];
+                h.shortY = h.shortY > 0 ? h.shortY - edgeThickness : h.shortY;
+                h.specY = h.specY > 0 ? h.specY - edgeThickness : h.specY;
+                h.y -= edgeThickness;
+                h.params.y -= edgeThickness;
+            }for (let i = 0; i < data.cuts.length; i += 1) {
+                const c = data.cuts[i];
+                if(c.y !== 0) c.y -= edgeThickness;
+            }
+            for (let i = 0; i < data.cuts.length; i += 1) {
+                const c = data.cuts[i];
+                if (c.y !== 0) c.y -= edgeThickness;
+            }
+        }
+
+        if (data.edgeRight.clipPanel) {
+            const edgeThickness = Math.round(data.edgeRight.thickness);
+            if (data.edgeRight.thickness) data.width = data.width - edgeThickness;
+
+            for (let i = 0; i < data.holes.length; i += 1) {
+                const h = data.holes[i];
+                h.shortY = h.shortY > 0 ? h.shortY : h.shortY + edgeThickness;
+                h.specY = h.specY > 0 ? h.specY : h.specY + edgeThickness;
+            }
+        }
+
+        if (data.edgeTop.clipPanel) {
+            const edgeThickness = Math.round(data.edgeTop.thickness);
+            if (data.edgeTop.thickness) data.height = data.height - edgeThickness;
+
+            for (let i = 0; i < data.holes.length; i += 1) {
+                const h = data.holes[i];
+                h.shortX = h.shortX > 0 ? h.shortX - edgeThickness : h.shortX;
+                h.specX = h.specX > 0 ? h.specX - edgeThickness : h.specX;
+                h.x -= edgeThickness;
+                h.params.x -= edgeThickness;
+            }
+            for (let i = 0; i < data.cuts.length; i += 1) {
+                const c = data.cuts[i];
+                if (c.x !== 0) c.x -= edgeThickness;
+            }
+        }
+        if (data.edgeBottom.clipPanel) {
+            const edgeThickness = Math.round(data.edgeBottom.thickness);
+            if (data.edgeBottom.thickness) data.height = data.height - edgeThickness;
+
+            for (let i = 0; i < data.holes.length; i += 1) {
+                const h = data.holes[i];
+                h.shortX = h.shortX > 0 ? h.shortX : h.shortX + edgeThickness;
+                h.specX = h.specX > 0 ? h.specX : h.specX + edgeThickness;
+            }
+        }
+
+        return data;
     };
 
     Reader.prototype.getEdge = function (type, panel) {
@@ -122,8 +185,10 @@ const Reader = (function () {
             id: null,
             name: null,
             thickness: null,
-            width: null
+            width: null,
+            clipPanel: null
         };
+
         if (panel.TextureOrientation === 1) {
             if (type === 'bottom') {
                 butt = this.getButtByElemIndex(panel.Butts, 1);
@@ -150,6 +215,7 @@ const Reader = (function () {
         buttData.name = butt.Sign;
         buttData.thickness = butt.Thickness;
         buttData.width = butt.Width;
+        buttData.clipPanel = butt.ClipPanel;
 
         return buttData;
     };
@@ -570,7 +636,7 @@ const Reader = (function () {
             let x;
             if (panel.TextureOrientation === 0 || panel.TextureOrientation === 2) {
                 if (cut.dir === 'v') {
-                    x = '0';
+                    x = 0;
                 } else {
                     x = Math.round(cut.pos);
                 }
@@ -578,7 +644,7 @@ const Reader = (function () {
                 if (cut.dir === 'v') {
                     x = Math.round(cut.pos);
                 } else {
-                    x = '0';
+                    x = 0;
                 }
             }
             return x;
@@ -589,11 +655,11 @@ const Reader = (function () {
                 if (cut.dir === 'v') {
                     y = Math.round(cut.pos);
                 } else {
-                    y = '0';
+                    y = 0;
                 }
             } else {
                 if (cut.dir === 'v') {
-                    y = '0';
+                    y = 0;
                 } else {
                     y = Math.round(cut.pos);
                 }
