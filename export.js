@@ -119,7 +119,7 @@ const Reader = (function () {
     Reader.prototype.clipPanel = function (data) {
 
         if (data.edgeLeft.clipPanel) {
-            const edgeThickness = Math.round(data.edgeLeft.thickness);
+            const edgeThickness = Math.floor(data.edgeLeft.thickness);
             if (data.edgeLeft.thickness) data.width = data.width - edgeThickness;
 
             for (let i = 0; i < data.holes.length; i += 1) {
@@ -145,7 +145,7 @@ const Reader = (function () {
         }
 
         if (data.edgeRight.clipPanel) {
-            const edgeThickness = Math.round(data.edgeRight.thickness);
+            const edgeThickness = Math.floor(data.edgeRight.thickness);
             if (data.edgeRight.thickness) data.width = data.width - edgeThickness;
 
             for (let i = 0; i < data.holes.length; i += 1) {
@@ -160,7 +160,7 @@ const Reader = (function () {
         }
 
         if (data.edgeTop.clipPanel) {
-            const edgeThickness = Math.round(data.edgeTop.thickness);
+            const edgeThickness = Math.floor(data.edgeTop.thickness);
             if (data.edgeTop.thickness) data.height = data.height - edgeThickness;
 
             for (let i = 0; i < data.holes.length; i += 1) {
@@ -180,7 +180,7 @@ const Reader = (function () {
             }
         }
         if (data.edgeBottom.clipPanel) {
-            const edgeThickness = Math.round(data.edgeBottom.thickness);
+            const edgeThickness = Math.floor(data.edgeBottom.thickness);
             if (data.edgeBottom.thickness) data.height = data.height - edgeThickness;
 
             for (let i = 0; i < data.holes.length; i += 1) {
