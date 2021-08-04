@@ -119,7 +119,7 @@ const Reader = (function () {
     Reader.prototype.clipPanel = function (data) {
 
         if (data.edgeLeft.clipPanel) {
-            const edgeThickness = Math.floor(data.edgeLeft.thickness);
+            const edgeThickness = data.edgeLeft.thickness;
             if (data.edgeLeft.thickness) data.width = data.width - edgeThickness;
 
             for (let i = 0; i < data.holes.length; i += 1) {
@@ -145,7 +145,7 @@ const Reader = (function () {
         }
 
         if (data.edgeRight.clipPanel) {
-            const edgeThickness = Math.floor(data.edgeRight.thickness);
+            const edgeThickness = data.edgeRight.thickness;
             if (data.edgeRight.thickness) data.width = data.width - edgeThickness;
 
             for (let i = 0; i < data.holes.length; i += 1) {
@@ -160,7 +160,7 @@ const Reader = (function () {
         }
 
         if (data.edgeTop.clipPanel) {
-            const edgeThickness = Math.floor(data.edgeTop.thickness);
+            const edgeThickness = data.edgeTop.thickness;
             if (data.edgeTop.thickness) data.height = data.height - edgeThickness;
 
             for (let i = 0; i < data.holes.length; i += 1) {
@@ -180,7 +180,7 @@ const Reader = (function () {
             }
         }
         if (data.edgeBottom.clipPanel) {
-            const edgeThickness = Math.floor(data.edgeBottom.thickness);
+            const edgeThickness = data.edgeBottom.thickness;
             if (data.edgeBottom.thickness) data.height = data.height - edgeThickness;
 
             for (let i = 0; i < data.holes.length; i += 1) {
@@ -193,6 +193,29 @@ const Reader = (function () {
                 }
             }
         }
+
+        //round values after clip
+        for (let i = 0; i < data.holes.length; i += 1) {
+            const h = data.holes[i];
+            if (h.shortX !== '') {
+                h.shortX = Math.round(h.shortX);
+            }
+            if (h.shortY !== '') {
+                h.shortY = Math.round(h.shortY);
+            }
+            if (h.specX !== '') {
+                h.specX = Math.round(h.specX);
+            }
+            if (h.specY !== '') {
+                h.specY = Math.round(h.specY);
+            }
+            h.x = Math.round(h.x);
+            h.y = Math.round(h.y);
+            h.params.x = Math.round(h.params.x);
+            h.params.y = Math.round(h.params.y);
+        }
+        data.width = Math.round(data.width);
+        data.height = Math.round(data.height);
 
         return data;
     };
