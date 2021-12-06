@@ -138,10 +138,6 @@ const Reader = (function () {
                 const c = data.cuts[i];
                 if (c.y !== 0) c.y -= edgeThickness;
             }
-            for (let i = 0; i < data.cuts.length; i += 1) {
-                const c = data.cuts[i];
-                if (c.y !== 0) c.y -= edgeThickness;
-            }
         }
 
         if (data.edgeRight.clipPanel) {
@@ -661,58 +657,16 @@ const Reader = (function () {
         return bores;
     };
 
-    Reader.prototype.isPointInsidePanel = function (point, panel) {
-        const cMin = panel.ToGlobal({ x: panel.Contour.Min.x, y: panel.Contour.Min.y });
-        const cMax = panel.ToGlobal({ x: panel.Contour.Max.x, y: panel.Contour.Max.y });
-        cMin.x = Math.round(cMin.x);
-        cMin.y = Math.round(cMin.y);
-        cMin.z = Math.round(cMin.z);
-        cMax.x = Math.round(cMax.x);
-        cMax.y = Math.round(cMax.y);
-        cMax.z = Math.round(cMax.z);
 
-        const x = Math.round(point.x);
-        const y = Math.round(point.y);
-        const z = Math.round(point.z);
-
-        let res = false;
-        if (cMin.x === cMax.x) {
-            if (
-                ((y >= cMin.y && y <= cMax.y) || (y <= cMin.y && y >= cMax.y)) &&
-                ((z >= cMin.z && z <= cMax.z) || (z <= cMin.z && z >= cMax.z))
-            ) {
-                res = true;
-            }
-        } else if (cMin.y === cMax.y) {
-            if (
-                ((x >= cMin.x && x <= cMax.x) || (x <= cMin.x && x >= cMax.x)) &&
-                ((z >= cMin.z && z <= cMax.z) || (z <= cMin.z && z >= cMax.z))
-            ) {
-                res = true;
-            }
-        } else if (cMin.z === cMax.z) {
-            if (
-                ((x >= cMin.x && x <= cMax.x) || (x <= cMin.x && x >= cMax.x)) &&
-                ((y >= cMin.y && y <= cMax.y) || (y <= cMin.y && y >= cMax.y))
-            ) {
-                res = true;
-            }
-        } else {
-            if (
-                ((x >= cMin.x && x <= cMax.x) || (x <= cMin.x && x >= cMax.x)) &&
-                ((y >= cMin.y && y <= cMax.y) || (y <= cMin.y && y >= cMax.y)) &&
-                ((z >= cMin.z && z <= cMax.z) || (z <= cMin.z && z >= cMax.z))
-            ) {
-                res = true;
-            }
-        }
-
-        return res;
-    };
 
     Reader.prototype.getCuts = function (panel) {
-        const cuts = this.getCutsFromPanel(panel);
-        return this.getBinartyCutsFormat(cuts, panel);
+
+        let cuts = this.getCutsFromPanel(panel);
+        console.log(...cuts);
+        cuts = this.getBinartyCutsFormat(cuts, panel);
+        console.log(...cuts);
+
+        return cuts;
     };
 
     Reader.prototype.getBinartyCutsFormat = function (cuts, panel) {
@@ -771,11 +725,14 @@ const Reader = (function () {
         const result = [];
 
         for (let i = 0; i < panel.Cuts.Count; i += 1) {
+
+
             const c = panel.Cuts[i],
                 cut = {};
             if (!c.Trajectory || !c.Trajectory.Count) continue;
 
             const grooveRect = this.checkGrooveOnRect(c);
+
             if (grooveRect > 0) {
                 if (this.msg.onlyRectGrooves) {
                     alert('Выгружены будут только прямолинейные пазы');
@@ -791,16 +748,18 @@ const Reader = (function () {
                 }
                 continue;
             }
+            const contourOffset = this.getContourOffset(c);
 
-            if (c.Trajectory[0].Pos1.x === c.Trajectory[0].Pos2.x) {
+            if (this.roundTo2(c.Trajectory[0].Pos1.x) === this.roundTo2(c.Trajectory[0].Pos2.x)) {
                 cut.dir = 'v';
-                cut.pos = c.Trajectory[0].Pos1.x;
-            } else if (c.Trajectory[0].Pos1.y === c.Trajectory[0].Pos2.y) {
+                cut.pos = c.Trajectory[0].Pos1.x + contourOffset;
+            } else if (this.roundTo2(c.Trajectory[0].Pos1.y) === this.roundTo2(c.Trajectory[0].Pos2.y)) {
                 cut.dir = 'h';
+
                 if (panel.TextureOrientation === 2) {
-                    cut.pos = panel.ContourHeight - c.Trajectory[0].Pos1.y;
+                    cut.pos = this.round(panel.ContourHeight - (c.Trajectory[0].Pos1.y + contourOffset));
                 } else {
-                    cut.pos = c.Trajectory[0].Pos1.y;
+                    cut.pos = this.roundTo2(c.Trajectory[0].Pos1.y + contourOffset);
                 }
             }
 
@@ -832,11 +791,29 @@ const Reader = (function () {
             }
         }
 
-        if (cut.Trajectory[0].Pos1.x !== cut.Trajectory[0].Pos2.x && cut.Trajectory[0].Pos1.y !== cut.Trajectory[0].Pos2.y) {
+        if (
+            this.roundTo2(cut.Trajectory[0].Pos1.x) !== this.roundTo2(cut.Trajectory[0].Pos2.x) &&
+            this.roundTo2(cut.Trajectory[0].Pos1.y) !== this.roundTo2(cut.Trajectory[0].Pos2.y)
+        ) {
             result = 3;
         }
         return result;
     };
+
+    Reader.prototype.getContourOffset = function (cut) {
+        let result = 0;
+
+        let max = -Infinity, min = Infinity;
+        for (let i = 0; i < cut.Contour.Count; i += 1) {
+            const contour = cut.Contour[i];
+            max = Math.max(contour.Pos1.x, contour.Pos2.x, max);
+            min = Math.min(contour.Pos1.x, contour.Pos2.x, min);
+        }
+        result = min + (max - min) / 2;
+
+
+        return result;
+    }
 
     Reader.prototype.getSideOfGroove = function (cut, panelThickness) {
         let result;
@@ -922,12 +899,65 @@ const Reader = (function () {
         return Math.abs(v1 - v2) < 0.001;
     };
 
+    Reader.prototype.roundTo2 = function (number) {
+        return Math.round(parseFloat(number) * 100) / 100;
+    };
+
     Reader.prototype.rnd2 = function (val) {
         let result = parseFloat(val.toFixed(2));
         if (result == -0) {
             result = 0;
         }
         return result;
+    };
+
+    Reader.prototype.isPointInsidePanel = function (point, panel) {
+        const cMin = panel.ToGlobal({ x: panel.Contour.Min.x, y: panel.Contour.Min.y });
+        const cMax = panel.ToGlobal({ x: panel.Contour.Max.x, y: panel.Contour.Max.y });
+        cMin.x = Math.round(cMin.x);
+        cMin.y = Math.round(cMin.y);
+        cMin.z = Math.round(cMin.z);
+        cMax.x = Math.round(cMax.x);
+        cMax.y = Math.round(cMax.y);
+        cMax.z = Math.round(cMax.z);
+
+        const x = Math.round(point.x);
+        const y = Math.round(point.y);
+        const z = Math.round(point.z);
+
+        let res = false;
+        if (cMin.x === cMax.x) {
+            if (
+                ((y >= cMin.y && y <= cMax.y) || (y <= cMin.y && y >= cMax.y)) &&
+                ((z >= cMin.z && z <= cMax.z) || (z <= cMin.z && z >= cMax.z))
+            ) {
+                res = true;
+            }
+        } else if (cMin.y === cMax.y) {
+            if (
+                ((x >= cMin.x && x <= cMax.x) || (x <= cMin.x && x >= cMax.x)) &&
+                ((z >= cMin.z && z <= cMax.z) || (z <= cMin.z && z >= cMax.z))
+            ) {
+                res = true;
+            }
+        } else if (cMin.z === cMax.z) {
+            if (
+                ((x >= cMin.x && x <= cMax.x) || (x <= cMin.x && x >= cMax.x)) &&
+                ((y >= cMin.y && y <= cMax.y) || (y <= cMin.y && y >= cMax.y))
+            ) {
+                res = true;
+            }
+        } else {
+            if (
+                ((x >= cMin.x && x <= cMax.x) || (x <= cMin.x && x >= cMax.x)) &&
+                ((y >= cMin.y && y <= cMax.y) || (y <= cMin.y && y >= cMax.y)) &&
+                ((z >= cMin.z && z <= cMax.z) || (z <= cMin.z && z >= cMax.z))
+            ) {
+                res = true;
+            }
+        }
+
+        return res;
     };
 
     Reader.prototype.getDate = function () {
