@@ -657,14 +657,9 @@ const Reader = (function () {
         return bores;
     };
 
-
-
     Reader.prototype.getCuts = function (panel) {
-
         let cuts = this.getCutsFromPanel(panel);
-        console.log(...cuts);
         cuts = this.getBinartyCutsFormat(cuts, panel);
-        console.log(...cuts);
 
         return cuts;
     };
