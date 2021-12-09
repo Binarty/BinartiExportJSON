@@ -83,6 +83,10 @@ const Reader = (function () {
             const width = Math.round(panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourWidth);
             const height = Math.round(panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourHeight);
 
+            const panelContourOffset = this.getPanelContourOffset(panel.Contour);
+
+
+
             let panelData = {
                 product: 'rect',
                 type: 'element',
@@ -100,7 +104,7 @@ const Reader = (function () {
                 edgeRight: this.getEdge('right', panel),
                 edgeTop: this.getEdge('top', panel),
                 edgeBottom: this.getEdge('bottom', panel),
-                cuts: this.getCuts(panel),
+                cuts: this.getCuts(panel, panelContourOffset),
                 holes: this.getHoles(panel),
                 position: { x: 0, y: 0, z: 0 },
                 rotation: { x: 0, y: 0, z: 0 },
@@ -115,6 +119,13 @@ const Reader = (function () {
 
         return result;
     };
+
+    Reader.prototype.getPanelContourOffset = function (contour) {
+        const min = contour.Min;
+        const max = contour.Max;
+
+        return { x: min.x, y: max.y };
+    }
 
     Reader.prototype.clipPanel = function (data) {
 
@@ -271,6 +282,104 @@ const Reader = (function () {
     Reader.prototype.getHoles = function (panel) {
         const holes = this.getHolesFromPanel(this.allHoles, panel);
         return this.getBinartyHolesFormat(holes, panel);
+    };
+
+    Reader.prototype.getHolesFromPanel = function (holes, panel) {
+        const MM = this.getMinMax(panel);
+        const bores = [];
+
+        function Bore(plane, d, x, y, z, dp, drillSide) {
+            this.plane = plane;
+            this.d = d;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.dp = dp;
+            this.drillSide = drillSide;
+        }
+
+        for (let i = 0; i < holes.length; i += 1) {
+            const hole = holes[i];
+
+            const holeDir = panel.NToObject(hole.direction);
+
+            const holePos = panel.GlobalToObject(hole.position);
+            //holePos.x -= panel.Contour.Min.x;
+            //holePos.y -= panel.Contour.Min.y;
+
+            const holeEndPos = panel.GlobalToObject(hole.endPosition);
+            //holeEndPos.x -= panel.Contour.Min.x;
+            //holeEndPos.y -= panel.Contour.Min.y;
+
+            if (holePos.z < -(hole.obj.Depth + panel.Thickness) || holePos.z > (hole.obj.Depth + panel.Thickness)) {
+                //если отверстие не касается панели
+                continue;
+            }
+            //Find bores to face or back
+            if (Math.round(Math.abs(holeDir.z)) === 1 && this.isPointInsidePanel(hole.position, panel)) {
+                if (holeDir.z > 0.001) {
+                    const depth = this.rnd2(holePos.z + hole.obj.Depth);
+                    if (holePos.z <= 0.001 && depth > 0) {
+                        const drillSide = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'back' : 'throught';
+                        bores.push(new Bore(5, hole.obj.Diameter, holePos.x - MM.minX, holePos.y - MM.minY, 0, depth, drillSide));
+                        hole.used = this.isEqualFloat(holePos.z, 0) && (panel.Thickness >= hole.obj.Depth);
+                    }
+                    continue;
+                } else {
+                    const depth = hole.obj.Depth - (holePos.z - panel.Thickness);
+                    if ((holePos.z - panel.Thickness) >= -0.001 && depth >= 0.001) {
+                        const drillSide = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'front' : 'throught';
+                        bores.push(new Bore(4, hole.obj.Diameter, holePos.x - MM.minX, holePos.y - MM.minY, 0, depth, drillSide));
+                        hole.used = this.isEqualFloat(holePos.z, panel.Thickness) && (panel.Thickness >= hole.obj.Depth);
+                    }
+                    continue;
+                }
+            }
+
+            //ignore holes width direction to face or back or .. or ..
+            if (this.rnd2(holeDir.z) !== 0 || holePos.z <= 0 || holePos.z >= panel.Thickness) continue;
+
+
+            if (this.isPointInsidePanel(hole.endPosition, panel)) {
+
+                const hdx = this.rnd2(holeDir.x);
+                const hdy = this.rnd2(holeDir.y);
+
+                for (let j = 0; j < panel.Contour.Count; j++) {
+                    const contour = panel.Contour[j];
+                    const contourButt = contour.Data && contour.Data.Butt ? contour.Data.Butt : null;
+                    const buttThickness = (contourButt && !contourButt.ClipPanel) ? contourButt.Thickness : 0;
+                    if (
+                        this.rnd2(contour.DistanceToPoint(holePos) + contour.DistanceToPoint(holeEndPos)) === this.rnd2(hole.obj.Depth) &&
+                        this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness) > 2
+                    ) {
+
+                        const depth = this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness);
+                        if (hdx === 1) {
+                            bores.push(new Bore(2, hole.obj.Diameter, 0, holePos.y - MM.minY, panel.Thickness - holePos.z, depth, 'left'));
+                            hole.used = this.isEqualFloat(depth, hole.obj.Depth);
+                            break;
+                        } else if (hdx === -1) {
+                            const width = panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourWidth;
+                            bores.push(new Bore(3, hole.obj.Diameter, width, holePos.y - MM.minY, panel.Thickness - holePos.z, depth, 'right'));
+                            hole.used = this.isEqualFloat(depth, hole.obj.Depth);
+                            break;
+                        } else if (hdx === 0) {
+                            if (hdy === 1) {
+                                bores.push(new Bore(1, hole.obj.Diameter, holePos.x - MM.minX, 0, panel.Thickness - holePos.z, depth, 'bottom'));
+                            } else if (hdy === -1) {
+                                const height = panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourHeight;
+                                bores.push(new Bore(0, hole.obj.Diameter, holePos.x - MM.minX, height, panel.Thickness - holePos.z, depth, 'top'));
+                            }
+                            hole.used = this.isEqualFloat(depth, hole.obj.Depth);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return bores;
     };
 
     Reader.prototype.getBinartyHolesFormat = function (holes, panel) {
@@ -559,109 +668,65 @@ const Reader = (function () {
         };
     };
 
-    Reader.prototype.getHolesFromPanel = function (holes, panel) {
-        const MM = this.getMinMax(panel);
-        const bores = [];
+    Reader.prototype.getCuts = function (panel, panelContourOffset) {
+        let cuts = this.getCutsFromPanel(panel, panelContourOffset);
 
-        function Bore(plane, d, x, y, z, dp, drillSide) {
-            this.plane = plane;
-            this.d = d;
-            this.x = x;
-            this.y = y;
-            this.z = z;
-            this.dp = dp;
-            this.drillSide = drillSide;
-        }
-
-        for (let i = 0; i < holes.length; i += 1) {
-            const hole = holes[i];
-
-            const holeDir = panel.NToObject(hole.direction);
-
-            const holePos = panel.GlobalToObject(hole.position);
-            //holePos.x -= panel.Contour.Min.x;
-            //holePos.y -= panel.Contour.Min.y;
-
-            const holeEndPos = panel.GlobalToObject(hole.endPosition);
-            //holeEndPos.x -= panel.Contour.Min.x;
-            //holeEndPos.y -= panel.Contour.Min.y;
-
-            if (holePos.z < -(hole.obj.Depth + panel.Thickness) || holePos.z > (hole.obj.Depth + panel.Thickness)) {
-                //если отверстие не касается панели
-                continue;
-            }
-            //Find bores to face or back
-            if (Math.round(Math.abs(holeDir.z)) === 1 && this.isPointInsidePanel(hole.position, panel)) {
-                if (holeDir.z > 0.001) {
-                    const depth = this.rnd2(holePos.z + hole.obj.Depth);
-                    if (holePos.z <= 0.001 && depth > 0) {
-                        const drillSide = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'back' : 'throught';
-                        bores.push(new Bore(5, hole.obj.Diameter, holePos.x - MM.minX, holePos.y - MM.minY, 0, depth, drillSide));
-                        hole.used = this.isEqualFloat(holePos.z, 0) && (panel.Thickness >= hole.obj.Depth);
-                    }
-                    continue;
-                } else {
-                    const depth = hole.obj.Depth - (holePos.z - panel.Thickness);
-                    if ((holePos.z - panel.Thickness) >= -0.001 && depth >= 0.001) {
-                        const drillSide = (Math.round(panel.Thickness * 10) > Math.round(depth * 10)) ? 'front' : 'throught';
-                        bores.push(new Bore(4, hole.obj.Diameter, holePos.x - MM.minX, holePos.y - MM.minY, 0, depth, drillSide));
-                        hole.used = this.isEqualFloat(holePos.z, panel.Thickness) && (panel.Thickness >= hole.obj.Depth);
-                    }
-                    continue;
-                }
-            }
-
-            //ignore holes width direction to face or back or .. or ..
-            if (this.rnd2(holeDir.z) !== 0 || holePos.z <= 0 || holePos.z >= panel.Thickness) continue;
-
-
-            if (this.isPointInsidePanel(hole.endPosition, panel)) {
-
-                const hdx = this.rnd2(holeDir.x);
-                const hdy = this.rnd2(holeDir.y);
-
-                for (let j = 0; j < panel.Contour.Count; j++) {
-                    const contour = panel.Contour[j];
-                    const contourButt = contour.Data && contour.Data.Butt ? contour.Data.Butt : null;
-                    const buttThickness = (contourButt && !contourButt.ClipPanel) ? contourButt.Thickness : 0;
-                    if (
-                        this.rnd2(contour.DistanceToPoint(holePos) + contour.DistanceToPoint(holeEndPos)) === this.rnd2(hole.obj.Depth) &&
-                        this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness) > 2
-                    ) {
-
-                        const depth = this.rnd2(contour.DistanceToPoint(holeEndPos) + buttThickness);
-                        if (hdx === 1) {
-                            bores.push(new Bore(2, hole.obj.Diameter, 0, holePos.y - MM.minY, panel.Thickness - holePos.z, depth, 'left'));
-                            hole.used = this.isEqualFloat(depth, hole.obj.Depth);
-                            break;
-                        } else if (hdx === -1) {
-                            const width = panel.TextureOrientation === 1 ? panel.ContourWidth : panel.ContourWidth;
-                            bores.push(new Bore(3, hole.obj.Diameter, width, holePos.y - MM.minY, panel.Thickness - holePos.z, depth, 'right'));
-                            hole.used = this.isEqualFloat(depth, hole.obj.Depth);
-                            break;
-                        } else if (hdx === 0) {
-                            if (hdy === 1) {
-                                bores.push(new Bore(1, hole.obj.Diameter, holePos.x - MM.minX, 0, panel.Thickness - holePos.z, depth, 'bottom'));
-                            } else if (hdy === -1) {
-                                const height = panel.TextureOrientation === 1 ? panel.ContourHeight : panel.ContourHeight;
-                                bores.push(new Bore(0, hole.obj.Diameter, holePos.x - MM.minX, height, panel.Thickness - holePos.z, depth, 'top'));
-                            }
-                            hole.used = this.isEqualFloat(depth, hole.obj.Depth);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        return bores;
-    };
-
-    Reader.prototype.getCuts = function (panel) {
-        let cuts = this.getCutsFromPanel(panel);
         cuts = this.getBinartyCutsFormat(cuts, panel);
 
         return cuts;
+    };
+
+    Reader.prototype.getCutsFromPanel = function (panel, panelContourOffset) {
+        const result = [];
+
+        for (let i = 0; i < panel.Cuts.Count; i += 1) {
+            const c = panel.Cuts[i],
+                cut = {};
+            if (!c.Trajectory || !c.Trajectory.Count) continue;
+
+            const grooveRect = this.checkGrooveOnRect(c);
+
+            if (grooveRect > 0) {
+                if (this.msg.onlyRectGrooves) {
+                    alert('Выгружены будут только прямолинейные пазы');
+                    this.msg.onlyRectGrooves = false;
+                }
+                continue;
+            }
+
+            if (c.Contour.Width !== 4) {
+                if (this.msg.only4mmGrooves) {
+                    alert('Пазы, шириной больше или меньше 4мм выгружены не будут');
+                    this.msg.only4mmGrooves = false;
+                }
+                continue;
+            }
+
+            const contourOffset = this.getContourOffset('x', c);
+            console.log({ p1x: c.Trajectory[0].Pos1.x, p2x: c.Trajectory[0].Pos2.x, p1y: c.Trajectory[0].Pos1.y, p2y: c.Trajectory[0].Pos2.y });
+
+            if (this.roundTo2(c.Trajectory[0].Pos1.x) === this.roundTo2(c.Trajectory[0].Pos2.x)) {
+                cut.dir = 'v';
+                cut.pos = c.Trajectory[0].Pos1.x + contourOffset - panelContourOffset.x;
+            } else if (this.roundTo2(c.Trajectory[0].Pos1.y) === this.roundTo2(c.Trajectory[0].Pos2.y)) {
+                cut.dir = 'h';
+
+                if (panel.TextureOrientation === 2) {
+                    cut.pos = this.round(panel.ContourHeight - (c.Trajectory[0].Pos1.y + contourOffset - panelContourOffset.y));
+                } else {
+                    cut.pos = this.roundTo2(c.Trajectory[0].Pos1.y + contourOffset - panelContourOffset.y);
+                }
+            }
+
+            cut.name = c.Name;
+            cut.depth = c.Contour.Height;
+            cut.width = c.Contour.Width;
+            cut.sign = c.Sign;
+            cut.side = this.getSideOfGroove(c, Math.round(panel.Thickness));
+
+            result.push(cut);
+        }
+        return result;
     };
 
     Reader.prototype.getBinartyCutsFormat = function (cuts, panel) {
@@ -716,59 +781,6 @@ const Reader = (function () {
         return result;
     };
 
-    Reader.prototype.getCutsFromPanel = function (panel) {
-        const result = [];
-
-        for (let i = 0; i < panel.Cuts.Count; i += 1) {
-
-
-            const c = panel.Cuts[i],
-                cut = {};
-            if (!c.Trajectory || !c.Trajectory.Count) continue;
-
-            const grooveRect = this.checkGrooveOnRect(c);
-
-            if (grooveRect > 0) {
-                if (this.msg.onlyRectGrooves) {
-                    alert('Выгружены будут только прямолинейные пазы');
-                    this.msg.onlyRectGrooves = false;
-                }
-                continue;
-            }
-
-            if (c.Contour.Width !== 4) {
-                if (this.msg.only4mmGrooves) {
-                    alert('Пазы, шириной больше или меньше 4мм выгружены не будут');
-                    this.msg.only4mmGrooves = false;
-                }
-                continue;
-            }
-            const contourOffset = this.getContourOffset(c);
-
-            if (this.roundTo2(c.Trajectory[0].Pos1.x) === this.roundTo2(c.Trajectory[0].Pos2.x)) {
-                cut.dir = 'v';
-                cut.pos = c.Trajectory[0].Pos1.x + contourOffset;
-            } else if (this.roundTo2(c.Trajectory[0].Pos1.y) === this.roundTo2(c.Trajectory[0].Pos2.y)) {
-                cut.dir = 'h';
-
-                if (panel.TextureOrientation === 2) {
-                    cut.pos = this.round(panel.ContourHeight - (c.Trajectory[0].Pos1.y + contourOffset));
-                } else {
-                    cut.pos = this.roundTo2(c.Trajectory[0].Pos1.y + contourOffset);
-                }
-            }
-
-            cut.name = c.Name;
-            cut.depth = c.Contour.Height;
-            cut.width = c.Contour.Width;
-            cut.sign = c.Sign;
-            cut.side = this.getSideOfGroove(c, Math.round(panel.Thickness));
-
-            result.push(cut);
-        }
-        return result;
-    };
-
     Reader.prototype.checkGrooveOnRect = function (cut) {
         let result = 0;
         for (let i = 0; i < cut.Contour.Count; i += 1) {
@@ -795,17 +807,22 @@ const Reader = (function () {
         return result;
     };
 
-    Reader.prototype.getContourOffset = function (cut) {
+    Reader.prototype.getContourOffset = function (dimension, cut) {
         let result = 0;
 
         let max = -Infinity, min = Infinity;
+
         for (let i = 0; i < cut.Contour.Count; i += 1) {
             const contour = cut.Contour[i];
-            max = Math.max(contour.Pos1.x, contour.Pos2.x, max);
-            min = Math.min(contour.Pos1.x, contour.Pos2.x, min);
+            if (dimension === 'x') {
+                max = Math.max(contour.Pos1.x, contour.Pos2.x, max);
+                min = Math.min(contour.Pos1.x, contour.Pos2.x, min);
+            } else {
+                max = Math.max(contour.Pos1.y, contour.Pos2.y, max);
+                min = Math.min(contour.Pos1.y, contour.Pos2.y, min);
+            }
         }
         result = min + (max - min) / 2;
-
 
         return result;
     }
