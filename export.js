@@ -1,5 +1,6 @@
 ﻿const FS = require('fs'),
     PATH = require('path');
+const { CLIENT_RENEG_WINDOW } = require('tls');
 
 const VERSION = "1.0";
 
@@ -85,8 +86,6 @@ const Reader = (function () {
 
             const panelContourOffset = this.getPanelContourOffset(panel.Contour);
 
-
-
             let panelData = {
                 product: 'rect',
                 type: 'element',
@@ -104,7 +103,7 @@ const Reader = (function () {
                 edgeRight: this.getEdge('right', panel),
                 edgeTop: this.getEdge('top', panel),
                 edgeBottom: this.getEdge('bottom', panel),
-                cuts: this.getCuts(panel, panelContourOffset),
+                cuts: this.getCuts(panel, panelContourOffset, width, height),
                 holes: this.getHoles(panel),
                 position: { x: 0, y: 0, z: 0 },
                 rotation: { x: 0, y: 0, z: 0 },
@@ -124,7 +123,7 @@ const Reader = (function () {
         const min = contour.Min;
         const max = contour.Max;
 
-        return { x: min.x, y: max.y };
+        return { x: min.x, y: min.y };
     }
 
     Reader.prototype.clipPanel = function (data) {
@@ -186,6 +185,7 @@ const Reader = (function () {
                 if (c.x !== 0) c.x -= edgeThickness;
             }
         }
+
         if (data.edgeBottom.clipPanel) {
             const edgeThickness = data.edgeBottom.thickness;
             if (data.edgeBottom.thickness) data.height = data.height - edgeThickness;
@@ -668,15 +668,15 @@ const Reader = (function () {
         };
     };
 
-    Reader.prototype.getCuts = function (panel, panelContourOffset) {
-        let cuts = this.getCutsFromPanel(panel, panelContourOffset);
+    Reader.prototype.getCuts = function (panel, panelContourOffset, panelWidth, panelHeight) {
+        let cuts = this.getCutsFromPanel(panel, panelContourOffset, panelWidth, panelHeight);
 
         cuts = this.getBinartyCutsFormat(cuts, panel);
 
         return cuts;
     };
 
-    Reader.prototype.getCutsFromPanel = function (panel, panelContourOffset) {
+    Reader.prototype.getCutsFromPanel = function (panel, panelContourOffset, panelWidth, panelHeight) {
         const result = [];
 
         for (let i = 0; i < panel.Cuts.Count; i += 1) {
@@ -703,7 +703,6 @@ const Reader = (function () {
             }
 
             const contourOffset = this.getContourOffset('x', c);
-            console.log({ p1x: c.Trajectory[0].Pos1.x, p2x: c.Trajectory[0].Pos2.x, p1y: c.Trajectory[0].Pos1.y, p2y: c.Trajectory[0].Pos2.y });
 
             if (this.roundTo2(c.Trajectory[0].Pos1.x) === this.roundTo2(c.Trajectory[0].Pos2.x)) {
                 cut.dir = 'v';
@@ -718,6 +717,7 @@ const Reader = (function () {
                 }
             }
 
+            // cut.pos = Math.abs(cut.pos);
             cut.name = c.Name;
             cut.depth = c.Contour.Height;
             cut.width = c.Contour.Width;
